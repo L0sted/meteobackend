@@ -59,13 +59,9 @@ void setup(){
     bmp.setOversampling(4);
   }
   
-  //BH1750
   Wire.begin(lightSCL, lightSDA);
-  // On esp8266 you can select SCL and SDA pins using Wire.begin(D4, D3);
   if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE))
     Serial.println("lightMeter error!");
-
-
   Serial.println("Go!");
 }
 
