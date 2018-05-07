@@ -17,7 +17,22 @@
 float inTemp,humid,extTemp;
 double bmpTemp,pressure,altitude,lux;
 
-const short ds18b20 = 4, bmpsda = 5, bmpscl = 16, lightSCL = 14, lightSDA = 12, dhtpin = 0;
+const short ds18b20 = 4, bmpsda = 5, bmpscl = 16, lightSCL = 13, lightSDA = 12, dhtpin = 15;
+/*
+  light connection:
+
+    VCC -> 3V3 or 5V
+    GND -> GND
+    SCL -> SCL (A5 on Arduino Uno, Leonardo, etc or 21 on Mega and Due, on esp8266 free selectable)
+    SDA -> SDA (A4 on Arduino Uno, Leonardo, etc or 20 on Mega and Due, on esp8266 free selectable)
+    ADD -> (not connected) or GND
+
+  ADD pin is used to set sensor I2C address. If it has voltage greater or equal to
+  0.7VCC voltage (e.g. you've connected it to VCC) the sensor address will be
+  0x5C. In other case (if ADD voltage less than 0.7 * VCC) the sensor address will
+  be 0x23 (by default).
+
+*/
 
 BMP280 bmp;
 #define P0 1013.25
