@@ -17,7 +17,7 @@
 float inTemp,humid,extTemp;
 double bmpTemp,pressure,altitude,lux;
 
-const short bmpsda = 5, bmpscl = 4, lightSCL = 1, lightSDA = 2, dhtpin = 10;
+const short ds18b20 = 4, bmpsda = 5, bmpscl = 16, lightSCL = 14, lightSDA = 12, dhtpin = 0;
 
 BMP280 bmp;
 #define P0 1013.25
