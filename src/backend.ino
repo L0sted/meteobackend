@@ -10,14 +10,14 @@
 #include "DHTesp.h"
 #include <DallasTemperature.h>
 #include <OneWire.h>
-#include "../wifi.h"
+#include "wifi.h"
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
 float inTemp,humid,extTemp;
 double bmpTemp,pressure,altitude,lux;
 
-const short ds18b20 = 4, bmpsda = 5, bmpscl = 16, lightSCL = 13, lightSDA = 12, dhtpin = 15;
+const short ds18pin = 4, bmpsda = 5, bmpscl = 16, lightSCL = 13, lightSDA = 12, dhtpin = 15;
 /*
   light connection:
 
@@ -35,11 +35,9 @@ const short ds18b20 = 4, bmpsda = 5, bmpscl = 16, lightSCL = 13, lightSDA = 12, 
 */
 
 BMP280 bmp;
-#define P0 1013.25
 
 DHTesp dht;
-#define ONE_WIRE_BUS 2  // DS18B20 pin
-OneWire oneWire(ONE_WIRE_BUS);
+OneWire oneWire(ds18pin);
 DallasTemperature DS18B20(&oneWire);
 
 WiFiClient client;
@@ -49,7 +47,6 @@ Adafruit_MQTT_Publish inTempMQTT = Adafruit_MQTT_Publish(&mqtt, "inTemp");
 Adafruit_MQTT_Publish humidMQTT = Adafruit_MQTT_Publish(&mqtt, "humid");
 Adafruit_MQTT_Publish bmpTempMQTT = Adafruit_MQTT_Publish(&mqtt, "bmpTemp");
 Adafruit_MQTT_Publish pressureMQTT = Adafruit_MQTT_Publish(&mqtt, "pressure");
-Adafruit_MQTT_Publish altitudeMQTT = Adafruit_MQTT_Publish(&mqtt, "altitude");
 
 BH1750 lightMeter;
 
@@ -67,7 +64,9 @@ void setup(){
   dht.setup(dhtpin);
   //==BMP INIT==
   if(!bmp.begin(bmpsda,bmpscl)){
-      Serial.println("BMP init failed!");
+      Serial.println("BMP init failed!\n Reset in 10 seconds");
+      delay(10000);
+      ESP.reset();
   }
   else {
     Serial.println("BMP init success!");  
@@ -77,7 +76,6 @@ void setup(){
   Wire.begin(lightSCL, lightSDA);
   if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE))
     Serial.println("lightMeter error!");
-  Serial.println("Go!");
 }
 
 void loop(){
@@ -91,6 +89,49 @@ void loop(){
   MQTT_loop();
 }
 
+
+//====================IN PROGRESS===================
+
+//===================WELL DONE=======================
+void getBMP(){
+  char result = bmp.startMeasurment();
+  if(result!=0){
+    delay(result);
+    bmp.getTemperatureAndPressure(bmpTemp,pressure);
+  }
+}
+
+void getDS18(){
+  do {
+    DS18B20.requestTemperatures(); 
+    extTemp = DS18B20.getTempCByIndex(0);
+  } while (extTemp == 85.0 || extTemp == (-127.0));
+}
+
+void getLight(){
+  lux = lightMeter.readLightLevel();
+}
+
+void serialPrint() {
+  Serial.println("BMP280 Temperature: " + String(bmpTemp) + "degC");
+  Serial.println("Pressure: " + String(pressure) + "mBar");
+  Serial.println("Altitude: " + String(altitude) + "m");
+
+  Serial.println("DS18B20 Temperature: " + String(extTemp) + "degC");
+
+  Serial.println("DHT11 Temperature: " + String(inTemp) + "degC");
+  Serial.println("Humidity" + String(humid) + "%");
+}
+
+void getAccurateDHT(){
+  humid = 0.0;
+  inTemp = 0.0;
+  for (int i = 0;i < 3; ++i) { //i dunno why it is incorrect sometimes
+    delay(dht.getMinimumSamplingPeriod());
+    humid += (dht.getHumidity())/3.0;
+    inTemp += (dht.getTemperature())/3.0;
+  }
+}
 void MQTT_loop() {
   MQTT_connect();
 
@@ -107,9 +148,6 @@ void MQTT_loop() {
     Serial.println(F("Failed"));
   }
   if (! pressureMQTT.publish(pressure)) {
-    Serial.println(F("Failed"));
-  }
-  if (! altitudeMQTT.publish(altitude)) {
     Serial.println(F("Failed"));
   }
 
@@ -141,67 +179,4 @@ void MQTT_connect() {
        }
   }
   Serial.println("MQTT Connected!");
-}
-
-//====================IN PROGRESS===================
-void getLight(){
-  lux = lightMeter.readLightLevel();
-
-}
-
-//===================WELL DONE=======================
-void getBMP(){
-  char result = bmp.startMeasurment();
-  if(result!=0){
-    delay(result);
-    result = bmp.getTemperatureAndPressure(bmpTemp,pressure);
-      if(result!=0){
-        altitude = bmp.altitude(pressure,P0);
-      }
-      else {
-        Serial.println("BMP Error, result == 0");
-      }
-  }
-  else {
-    Serial.println("BMP Error, result == 0");
-  }
-  delay(100);
-}
-
-void getDS18(){
-  do {
-    DS18B20.requestTemperatures(); 
-    // Serial.println("request done");
-    extTemp = DS18B20.getTempCByIndex(0);
-    // Serial.println(extTemp);
-  } while (extTemp == 85.0 || extTemp == (-127.0));
-
-}
-
-void serialPrint() {
-  //bmp
-  Serial.print("T = \t");Serial.print(bmpTemp,2); Serial.print(" degC\t");
-  Serial.print("P = \t");Serial.print(pressure,2); Serial.print(" mBar\t");
-  Serial.print("A = \t");Serial.print(altitude,2); Serial.println(" m");
-  //ds18
-  Serial.print("Temperature: ");
-  Serial.println(extTemp);
-  //dht
-  Serial.print("internal: ");
-  Serial.print(humid);
-  Serial.print(" ");
-  Serial.println(inTemp);
-}
-
-void getAccurateDHT(){
-  humid = 0.0;
-  inTemp = 0.0;
-  for (int i = 0;i < 3; ++i) {
-    delay(dht.getMinimumSamplingPeriod());
-    humid += (dht.getHumidity())/3.0;
-    inTemp += (dht.getTemperature())/3.0;
-  }
-  // if (humid == "nan" || inTemp == "nan") { 
-  //   getAccurateDHT();
-  // }
 }
