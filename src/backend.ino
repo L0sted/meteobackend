@@ -1,11 +1,3 @@
-/*
-todo
-
-* sleep
-* 
-
-*/
-
 #include <BH1750.h>
 #include <BMP280.h>
 #include <Wire.h>
@@ -24,22 +16,7 @@ todo
 float inTemp,humid,extTemp;
 double bmpTemp,pressure,altitude,lux;
 
-const short ds18pin = 4, bmpsda = 5, bmpscl = 14, lightSCL = 13, lightSDA = 12, dhtpin = 15;
-/*
-  light connection:
-
-    VCC -> 3V3 or 5V
-    GND -> GND
-    SCL -> SCL (A5 on Arduino Uno, Leonardo, etc or 21 on Mega and Due, on esp8266 free selectable)
-    SDA -> SDA (A4 on Arduino Uno, Leonardo, etc or 20 on Mega and Due, on esp8266 free selectable)
-    ADD -> (not connected) or GND
-
-  ADD pin is used to set sensor I2C address. If it has voltage greater or equal to
-  0.7VCC voltage (e.g. you've connected it to VCC) the sensor address will be
-  0x5C. In other case (if ADD voltage less than 0.7 * VCC) the sensor address will
-  be 0x23 (by default).
-
-*/
+const short ds18pin = 14, bmpsda = 5, bmpscl = 4, dhtpin = 14;
 
 BMP280 bmp;
 
@@ -56,10 +33,12 @@ Adafruit_MQTT_Publish bmpTempMQTT = Adafruit_MQTT_Publish(&mqtt, "bmpTemp");
 Adafruit_MQTT_Publish pressureMQTT = Adafruit_MQTT_Publish(&mqtt, "pressure");
 Adafruit_MQTT_Publish lightMQTT = Adafruit_MQTT_Publish(&mqtt, "light");
 
-BH1750 lightMeter;
+BH1750 lightMeter(0x23);
 
 void setup(){
   Serial.begin(115200);
+    Serial.setTimeout(2000);
+
   //==WIFI CONNECT==
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -81,21 +60,26 @@ void setup(){
     bmp.setOversampling(4);
   }
   
-  Wire.begin(lightSCL, lightSDA);
-  if (!lightMeter.begin())
+  // Wire.begin(lightSCL, lightSDA);
+  if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE))
     Serial.println("lightMeter error!");
+
+  // short i = 0;
+
+  // while (i < 1) {  
+    // ++i;
+  // }
+  // Serial.println("lets sleep for 30e6 us or 30 seconds");
+  // ESP.deepSleep(30e6); 
 }
 
 void loop(){
-  getAccurateDHT();
-  serialPrint();
-  // getDS18();
-  serialPrint();
-  getBMP();
-  serialPrint();
-  getLight();
-  serialPrint();
-  MQTT_loop();
+    // getDS18();
+    getBMP();
+    getLight();
+    MQTT_loop();
+    getAccurateDHT();
+    serialPrint();
 }
 
 
@@ -125,21 +109,17 @@ void serialPrint() {
   Serial.println("====");
   Serial.println("BMP280 Temperature: " + String(bmpTemp) + "degC");
   Serial.println("Pressure: " + String(pressure) + "mBar");
-  Serial.println("Altitude: " + String(altitude) + "m");
   Serial.println("DS18B20 Temperature: " + String(extTemp) + "degC");
   Serial.println("DHT11 Temperature: " + String(inTemp) + "degC");
-  Serial.println("Humidity" + String(humid) + "%");
+  Serial.println("Humidity: " + String(humid) + "%");
   Serial.println("Light:" + String(lux)+"lux");
 }
 
 void getAccurateDHT(){
-  humid = 0.0;
-  inTemp = 0.0;
-  for (int i = 0;i < 3; ++i) { //i dunno why it is incorrect sometimes
-    delay(dht.getMinimumSamplingPeriod());
-    humid += (dht.getHumidity())/3.0;
-    inTemp += (dht.getTemperature())/3.0;
-  }
+  // do {
+    humid = (dht.getHumidity());
+    inTemp = (dht.getTemperature());
+  // } while ((humid == NAN)||(inTemp == NAN));
 }
 void MQTT_loop() {
   MQTT_connect();
@@ -170,25 +150,19 @@ void MQTT_loop() {
 
 void MQTT_connect() {
   int8_t ret;
-
-  // Stop if already connected.
   if (mqtt.connected()) {
     return;
   }
-
-  // Serial.print("Connecting to MQTT... ");
-
   uint8_t retries = 3;
   while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       Serial.println(mqtt.connectErrorString(ret));
-       Serial.println("Retrying MQTT connection in 5 seconds...");
-       mqtt.disconnect();
-       delay(5000);  // wait 5 seconds
-       retries--;
-       if (retries == 0) {
-         // basically die and wait for WDT to reset me
-         while (1);
-       }
+    Serial.println(mqtt.connectErrorString(ret));
+    Serial.println("Retrying MQTT connection in 5 seconds...");
+    mqtt.disconnect();
+    delay(5000);  // wait 5 seconds
+    retries--;
+    if (retries == 0) {
+    while (1);
+  }
   }
   Serial.println("MQTT Connected!");
 }
