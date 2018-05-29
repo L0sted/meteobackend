@@ -1,4 +1,11 @@
-//backend
+/*
+todo
+
+* sleep
+* 
+
+*/
+
 #include <BH1750.h>
 #include <BMP280.h>
 #include <Wire.h>
@@ -17,7 +24,7 @@
 float inTemp,humid,extTemp;
 double bmpTemp,pressure,altitude,lux;
 
-const short ds18pin = 4, bmpsda = 5, bmpscl = 16, lightSCL = 13, lightSDA = 12, dhtpin = 15;
+const short ds18pin = 4, bmpsda = 5, bmpscl = 14, lightSCL = 13, lightSDA = 12, dhtpin = 15;
 /*
   light connection:
 
@@ -41,12 +48,13 @@ OneWire oneWire(ds18pin);
 DallasTemperature DS18B20(&oneWire);
 
 WiFiClient client;
-Adafruit_MQTT_Client mqtt(&client, "192.168.100.102", 1883);
+Adafruit_MQTT_Client mqtt(&client, "192.168.100.100", 1883);
 Adafruit_MQTT_Publish extTempMQTT = Adafruit_MQTT_Publish(&mqtt, "externalTemp");
 Adafruit_MQTT_Publish inTempMQTT = Adafruit_MQTT_Publish(&mqtt, "inTemp");
 Adafruit_MQTT_Publish humidMQTT = Adafruit_MQTT_Publish(&mqtt, "humid");
 Adafruit_MQTT_Publish bmpTempMQTT = Adafruit_MQTT_Publish(&mqtt, "bmpTemp");
 Adafruit_MQTT_Publish pressureMQTT = Adafruit_MQTT_Publish(&mqtt, "pressure");
+Adafruit_MQTT_Publish lightMQTT = Adafruit_MQTT_Publish(&mqtt, "light");
 
 BH1750 lightMeter;
 
@@ -74,18 +82,19 @@ void setup(){
   }
   
   Wire.begin(lightSCL, lightSDA);
-  if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE))
+  if (!lightMeter.begin())
     Serial.println("lightMeter error!");
 }
 
 void loop(){
-  // Serial.println("DHT");
   getAccurateDHT();
-  // Serial.println("DS18B20");
-  getDS18();
-  // Serial.println("BMP280");
+  serialPrint();
+  // getDS18();
+  serialPrint();
   getBMP();
-  // Serial.println("MQTT");
+  serialPrint();
+  getLight();
+  serialPrint();
   MQTT_loop();
 }
 
@@ -113,14 +122,14 @@ void getLight(){
 }
 
 void serialPrint() {
+  Serial.println("====");
   Serial.println("BMP280 Temperature: " + String(bmpTemp) + "degC");
   Serial.println("Pressure: " + String(pressure) + "mBar");
   Serial.println("Altitude: " + String(altitude) + "m");
-
   Serial.println("DS18B20 Temperature: " + String(extTemp) + "degC");
-
   Serial.println("DHT11 Temperature: " + String(inTemp) + "degC");
   Serial.println("Humidity" + String(humid) + "%");
+  Serial.println("Light:" + String(lux)+"lux");
 }
 
 void getAccurateDHT(){
@@ -148,6 +157,9 @@ void MQTT_loop() {
     Serial.println(F("Failed"));
   }
   if (! pressureMQTT.publish(pressure)) {
+    Serial.println(F("Failed"));
+  }
+  if (! lightMQTT.publish(lux)) {
     Serial.println(F("Failed"));
   }
 
