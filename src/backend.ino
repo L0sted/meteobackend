@@ -5,7 +5,7 @@
 #include <WiFiUdp.h> 
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
-#include <ESP8266mDNS.h>
+// #include <ESP8266mDNS.h>
 #include "DHTesp.h"
 #include <DallasTemperature.h>
 #include <OneWire.h>
@@ -16,7 +16,7 @@
 float inTemp,humid,extTemp;
 double bmpTemp,pressure,altitude,lux;
 
-const short ds18pin = 14, bmpsda = 5, bmpscl = 4, dhtpin = 14;
+const short ds18pin = 12, bmpsda = 5, bmpscl = 4, dhtpin = 14;
 
 BMP280 bmp;
 
@@ -47,10 +47,11 @@ void setup(){
     Serial.print(".");
   }
   Serial.println("Connected to " + String(ssid) + "; IP address: " + WiFi.localIP());
-  MDNS.begin("esp8266-backend");
-  dht.setup(dhtpin);
-  //==BMP INIT==
-  if(!bmp.begin(bmpsda,bmpscl)){
+  // MDNS.begin("esp8266-backend");
+  //Sensors init
+
+  //we need remember that bmp and bh1750 are on one i2c line, bmp does wire.begin, bh1750 seems not
+  if(!bmp.begin(bmpsda, bmpscl)){
       Serial.println("BMP init failed!\n Reset in 10 seconds");
       delay(10000);
       ESP.reset();
@@ -60,32 +61,24 @@ void setup(){
     bmp.setOversampling(4);
   }
   
-  // Wire.begin(lightSCL, lightSDA);
   if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE))
     Serial.println("lightMeter error!");
 
-  // short i = 0;
-
-  // while (i < 1) {  
-    // ++i;
-  // }
+  dht.setup(dhtpin);
   // Serial.println("lets sleep for 30e6 us or 30 seconds");
   // ESP.deepSleep(30e6); 
 }
 
 void loop(){
-    // getDS18();
-    getBMP();
-    getLight();
-    MQTT_loop();
-    getAccurateDHT();
-    serialPrint();
+  getDS18();
+  getBMP();
+  getLight();
+  getAccurateDHT();
+  MQTT_loop();
+  serialPrint();
+
 }
 
-
-//====================IN PROGRESS===================
-
-//===================WELL DONE=======================
 void getBMP(){
   char result = bmp.startMeasurment();
   if(result!=0){
@@ -116,36 +109,32 @@ void serialPrint() {
 }
 
 void getAccurateDHT(){
-  // do {
-    humid = (dht.getHumidity());
-    inTemp = (dht.getTemperature());
-  // } while ((humid == NAN)||(inTemp == NAN));
+  humid = (dht.getHumidity());
+  inTemp = (dht.getTemperature());
 }
 void MQTT_loop() {
   MQTT_connect();
 
-  if (! extTempMQTT.publish(extTemp)) {
+  if (! extTempMQTT.publish(extTemp)) 
     Serial.println(F("Failed"));
-  }
-  if (! inTempMQTT.publish(inTemp)) {
-    Serial.println(F("Failed"));
-  }
-  if (! humidMQTT.publish(humid)) {
-    Serial.println(F("Failed"));
-  }
-  if (! bmpTempMQTT.publish(bmpTemp)) {
-    Serial.println(F("Failed"));
-  }
-  if (! pressureMQTT.publish(pressure)) {
-    Serial.println(F("Failed"));
-  }
-  if (! lightMQTT.publish(lux)) {
-    Serial.println(F("Failed"));
-  }
 
-  if(! mqtt.ping()) {
+  if (! inTempMQTT.publish(inTemp)) 
+    Serial.println(F("Failed"));
+
+  if (! humidMQTT.publish(humid)) 
+    Serial.println(F("Failed"));
+
+  if (! bmpTempMQTT.publish(bmpTemp))
+    Serial.println(F("Failed"));
+
+  if (! pressureMQTT.publish(pressure)) 
+    Serial.println(F("Failed"));
+
+  if (! lightMQTT.publish(lux)) 
+    Serial.println(F("Failed"));
+
+  if(! mqtt.ping())
     mqtt.disconnect();
-  }
 }
 
 void MQTT_connect() {
@@ -160,9 +149,8 @@ void MQTT_connect() {
     mqtt.disconnect();
     delay(5000);  // wait 5 seconds
     retries--;
-    if (retries == 0) {
+    if (retries == 0)
     while (1);
-  }
   }
   Serial.println("MQTT Connected!");
 }

@@ -1,6 +1,6 @@
 {
     "board": "esp8266:esp8266:generic",
-    "configuration": "CpuFrequency=160,FlashFreq=80,FlashMode=dio,UploadSpeed=115200,FlashSize=2M,ResetMethod=ck,Debug=Disabled,DebugLevel=None____",
+    "configuration": "CpuFrequency=80,FlashFreq=40,FlashMode=qio,UploadSpeed=115200,FlashSize=2M,ResetMethod=ck,Debug=Disabled,DebugLevel=None____",
     "sketch": "src/backend.ino",
     "output": "Output",
     "port": "/dev/ttyUSB0"
